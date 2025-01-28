@@ -1,3 +1,6 @@
+os
+secrets
+python-dotenv
 fastapi
 uvicorn
 sentence-transformers
