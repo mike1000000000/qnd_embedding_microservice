@@ -9,10 +9,13 @@ The service is built as a Docker container, making it easy to deploy and use in 
 - **Text Embedding Generation**: Accepts a text input and generates its embedding using the `all-MiniLM-L6-v2` model from the **Sentence-Transformers** library.
 - **Dockerized**: The service is containerized using Docker for easy deployment.
 - **GPU Support**: The service supports CUDA for faster computations if available (via `torch`).
+- **API Key Authentication**: Protects the endpoint with an API key to ensure secure access.
 
 ## Requirements
 
+- **Python 3.8+** (for running the app manually)
 - **Docker** (for containerization)
+- **Uvicorn** (for running the app manually)
 
 ## Setup and Usage
 
@@ -27,22 +30,53 @@ git clone https://github.com/mike1000000000/qnd_embedding_microservice.git
 cd qnd_embedding_microservice
 ```
 
-### 2. Build the Docker Image
+### 2. Generate or Set the API Key
 
-Build the Docker image for the microservice:
+The service uses an API key for authentication. On the first run, the app will generate an `API_KEY` and save it to a `.env` file. The key will also be displayed in the logs. Make sure to copy and store this key securely. You can also manually set an API key by adding it to the `.env` file:
+
+```env
+API_KEY=your_generated_api_key
+```
+
+### 3. Run the App Manually
+
+To run the app without Docker, use the following steps:
+
+1. Install the dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Start the app using Uvicorn:
+
+   ```bash
+   uvicorn app:app --host 0.0.0.0 --port 5000
+   ```
+
+   The app will now be available on `http://localhost:5000`. 
+
+3. Use the API Key:
+   - Include the `X-API-Key` header in all requests to authenticate. For example:
+
+     ```bash
+     curl -X POST http://localhost:5000/embeddings \
+         -H "Content-Type: application/json" \
+         -H "X-API-Key: your_api_key_here" \
+         -d '{"text": "Hello, this is an example."}'
+     ```
+
+### 4. Build and Run the Docker Container
+
+Alternatively, you can build and run the service as a Docker container:
+
+#### Build the Docker Image
 
 ```bash
 docker build -t sentence-embedding-service .
 ```
 
-This step will:
-
-1. Install the necessary Python dependencies.
-2. Download and save the `all-MiniLM-L6-v2` model to the `model/` directory inside the Docker container.
-
-### 3. Run the Docker Container
-
-Start the microservice by running the Docker container:
+#### Run the Docker Container
 
 ```bash
 docker run -p 5000:5000 sentence-embedding-service
@@ -50,27 +84,7 @@ docker run -p 5000:5000 sentence-embedding-service
 
 The service will now be available on port `5000`. You can adjust the port mapping as needed.
 
-### 4. Send a Request to the API
-
-To get an embedding for a given sentence, make a POST request to `http://localhost:5000/embeddings`.
-
-Example request using `curl`:
-
-```bash
-curl -X POST http://localhost:5000/embeddings \
-    -H "Content-Type: application/json" \
-    -d '{"text": "Hello, this is an example."}'
-```
-
-The response will look something like this:
-
-```json
-{
-  "embedding": [0.1, 0.2, 0.3, ...]  // A list of floats representing the sentence embedding.
-}
-```
-
-### 5. Access the API Documentation
+#### Access the API Documentation
 
 The microservice provides interactive API documentation via **FastAPI**. After starting the service, you can access it at:
 
@@ -80,12 +94,15 @@ The microservice provides interactive API documentation via **FastAPI**. After s
 ## Troubleshooting
 
 - **Docker container fails to start**:
-  - Ensure that Docker is running and has sufficient resources allocated. **Note**: This container can be 6GB.
+  - Ensure that Docker is running and has sufficient resources allocated.
+  - Make sure the `model` directory is accessible within the container.
 
 - **Missing Model Error**:
   - If the model isn't downloaded properly, try rebuilding the Docker image to ensure all steps are executed correctly.
 
+- **Invalid API Key**:
+  - If you see a `401 Unauthorized` error, ensure that the `X-API-Key` header matches the key in the `.env` file.
+
 ## License
 
 This microservice is open-source and available for use under the MIT License.
-

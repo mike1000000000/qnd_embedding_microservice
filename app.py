@@ -11,15 +11,19 @@ load_dotenv()
 
 # Load or generate the API key
 API_KEY = os.getenv("API_KEY")
+
 if not API_KEY:
-    API_KEY = secrets.token_hex(32)  # Generate a 32-byte secure key
-    with open(".env", "a") as f:  # Append the new key to the .env file
-        f.write(f"\nAPI_KEY={API_KEY}\n")
+    try:
+        API_KEY = secrets.token_hex(32) 
+
+        # Append new key to .env file
+        with open(".env", "a") as f:  
+            f.write(f"\nAPI_KEY={API_KEY}\n")
         print("Generated Key")
+    except IOError:
+        print("Warning: Unable to write to .env. Set API_KEY manually.")
 
 print(f"API_KEY: {API_KEY}")
-
-
 
 class TextRequest(BaseModel):
     text: str
@@ -27,7 +31,8 @@ class TextRequest(BaseModel):
 app = FastAPI()
 
 # Load the model
-model = SentenceTransformer('model/all-MiniLM-L6-v2')
+model_path = os.path.abspath(os.path.join(os.getcwd(), "model/all-MiniLM-L6-v2"))
+model = SentenceTransformer(model_path)
 
 def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:
