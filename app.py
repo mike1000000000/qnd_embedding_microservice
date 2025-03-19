@@ -4,35 +4,62 @@ from sentence_transformers import SentenceTransformer
 
 import os
 import secrets
+import logging
 from dotenv import load_dotenv
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+ENV_FILE = ".env"
+
 # Load env variables
-load_dotenv()
+if os.path.exists(ENV_FILE):
+    load_dotenv()
 
-# Load or generate the API key
-API_KEY = os.getenv("API_KEY")
+def model_exists(model_path):
+    """Check if the model directory exists and contains files"""
+    return os.path.isdir(model_path) and bool(os.listdir(model_path))
 
-if not API_KEY:
-    try:
-        API_KEY = secrets.token_hex(32) 
+def download_model(model_name, model_dir):
+    """Download the model if it doesn't exist"""
+    os.makedirs(model_dir, exist_ok=True)
+    logger.info(f"Downloading model: {model_name}...")
+    model = SentenceTransformer(model_name, cache_folder=model_dir)
+    logger.info(f"Model saved to: {model_dir}")
+    return model
 
-        # Append new key to .env file
-        with open(".env", "a") as f:  
-            f.write(f"\nAPI_KEY={API_KEY}\n")
-        print("Generated Key")
-    except IOError:
-        print("Warning: Unable to write to .env. Set API_KEY manually.")
+def update_env(key, value):
+    """Append key=value to .env if not already set"""
+    with open(ENV_FILE, "a+") as f:
+        f.seek(0)  # Move to start to read existing content
+        lines = f.readlines()
+        if any(line.startswith(f"{key}=") for line in lines):
+            return  # Key already exists, do nothing
+        f.write(f"\n{key}={value}\n")    
 
-print(f"API_KEY: {API_KEY}")
+# Load or generate API key
+API_KEY = os.getenv("API_KEY", secrets.token_hex(32))
+update_env("API_KEY", API_KEY)
+logger.info(f"API_KEY: {API_KEY}")
+
+# Load or set default model - relying on the env $MODEL variable, defaulting to 'all-MiniLM-L6-v2'
+MODEL_NAME = os.getenv("MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+MODEL_DIR = os.path.join(os.getcwd(), "model")
+MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
+logger.info(f"MODEL_NAME: {MODEL_NAME}")
+
+# Check and load/download the model
+if not model_exists(MODEL_PATH):
+    model = download_model(MODEL_NAME, MODEL_PATH)
+else:
+    logger.info(f"Model already exists at {MODEL_PATH}")
+    model = SentenceTransformer(MODEL_PATH)
 
 class TextRequest(BaseModel):
     text: str
 
 app = FastAPI()
-
-# Load the model
-model_path = os.path.abspath(os.path.join(os.getcwd(), "model/all-MiniLM-L6-v2"))
-model = SentenceTransformer(model_path)
 
 def verify_api_key(x_api_key: str = Header(...)):
     if x_api_key != API_KEY:
